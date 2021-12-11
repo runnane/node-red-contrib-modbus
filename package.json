@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-modbus",
-  "version": "5.16.0",
+  "version": "5.20.0",
   "private": false,
   "description": "The all in one Modbus TCP and Serial contribution package for Node-RED. Hacked version for dupline. Do not use!",
   "dependencies": {
@@ -29,7 +29,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/biancoroyal/node-red-contrib-modbus.git"
+    "url": "git+https://github.com/runnane/node-red-contrib-modbus.git"
   },
   "node-red": {
     "nodes": {
@@ -59,7 +59,7 @@
     "supporter.js"
   ],
   "bugs": {
-    "url": "https://github.com/biancoroyal/node-red-contrib-modbus/issues/"
+    "url": "https://github.com/runnane/node-red-contrib-modbus/issues/"
   },
   "homepage": "https://github.com/sponsors/biancode/",
   "scripts": {
