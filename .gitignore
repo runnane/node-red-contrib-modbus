@@ -1,9 +1,9 @@
-code/
+
 node_modules
 npm-debug.log
-modbus
+
 node_modules_*/
-docs/icons
+
 .idea/
 docs/gen/
 coverage/

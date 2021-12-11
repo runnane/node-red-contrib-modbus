@@ -256,7 +256,6 @@ de.biancoroyal.modbus.core.client.writeModbusByFunctionCodeFive = function (node
   })
 }
 
-
 de.biancoroyal.modbus.core.client.writeModbusByFunctionCodeFiveDupline = function (node, msg, cb, cberr) {
   const coreClient = de.biancoroyal.modbus.core.client
   node.client.writeCoil(parseInt(msg.payload.address), msg.payload.value).then(function (resp) {
