@@ -9,7 +9,7 @@
     "debug": "~4.3.2",
     "jsmodbus": "~4.0.6",
     "line-by-line": "~0.1.6",
-    "modbus-serial" : "git://https://github.com/runnane/node-modbus-serial.git",
+    "modbus-serial" : "git+https://github.com/runnane/node-modbus-serial.git",
     "source-map-support": "~0.5.20",
     "vm2": "~3.9.5"
   },
