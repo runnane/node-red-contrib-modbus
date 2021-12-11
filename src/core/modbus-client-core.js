@@ -256,6 +256,25 @@ de.biancoroyal.modbus.core.client.writeModbusByFunctionCodeFive = function (node
   })
 }
 
+
+de.biancoroyal.modbus.core.client.writeModbusByFunctionCodeFiveDupline = function (node, msg, cb, cberr) {
+  const coreClient = de.biancoroyal.modbus.core.client
+  node.client.writeCoil(parseInt(msg.payload.address), msg.payload.value).then(function (resp) {
+    coreClient.activateSendingOnSuccess(node, cb, cberr, resp, msg)
+  }).catch(function (err) {
+    if (node.client.getID() === 0) {
+      const resp = {
+        address: parseInt(msg.payload.address),
+        value: msg.payload.value
+      }
+      coreClient.activateSendingOnSuccess(node, cb, cberr, resp, msg)
+    } else {
+      coreClient.activateSendingOnFailure(node, cberr, err, msg)
+      node.modbusErrorHandling(err)
+    }
+  })
+}
+
 de.biancoroyal.modbus.core.client.writeModbusByFunctionCodeFifteen = function (node, msg, cb, cberr) {
   const coreClient = de.biancoroyal.modbus.core.client
   if (parseInt(msg.payload.value.length) !== parseInt(msg.payload.quantity)) {
@@ -353,6 +372,9 @@ de.biancoroyal.modbus.core.client.writeModbus = function (node, msg, cb, cberr) 
         break
       case 5: // FC: 5
         coreClient.writeModbusByFunctionCodeFive(node, msg, cb, cberr)
+        break
+      case 50: // FC: 50
+        coreClient.writeModbusByFunctionCodeFiveDupline(node, msg, cb, cberr)
         break
       case 16: // FC: 16
         coreClient.writeModbusByFunctionCodeSixteen(node, msg, cb, cberr)
