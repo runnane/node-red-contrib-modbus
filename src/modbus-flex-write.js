@@ -80,6 +80,7 @@ module.exports = function (RED) {
 
       if (!(Number.isInteger(msg.payload.fc) &&
               (msg.payload.fc === 5 ||
+                  msg.payload.fc === 50 ||
                 msg.payload.fc === 6 ||
                 msg.payload.fc === 15 ||
                 msg.payload.fc === 16))) {
