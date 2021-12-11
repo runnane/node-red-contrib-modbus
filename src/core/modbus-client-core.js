@@ -258,7 +258,7 @@ de.biancoroyal.modbus.core.client.writeModbusByFunctionCodeFive = function (node
 
 de.biancoroyal.modbus.core.client.writeModbusByFunctionCodeFiveDupline = function (node, msg, cb, cberr) {
   const coreClient = de.biancoroyal.modbus.core.client
-  node.client.writeCoil(parseInt(msg.payload.address), msg.payload.value).then(function (resp) {
+  node.client.writeCoilDupline(parseInt(msg.payload.address), msg.payload.value).then(function (resp) {
     coreClient.activateSendingOnSuccess(node, cb, cberr, resp, msg)
   }).catch(function (err) {
     if (node.client.getID() === 0) {
