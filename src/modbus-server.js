@@ -1,10 +1,11 @@
 /**
- Copyright (c) 2016,2017,2018,2019,2020,2021 Klaus Landsdorf (https://bianco-royal.space/)
+ Copyright (c) since the year 2016 Klaus Landsdorf (http://plus4nodered.com/)
  All rights reserved.
  node-red-contrib-modbus - The BSD 3-Clause License
 
  @author <a href="mailto:klaus.landsdorf@bianco-royal.de">Klaus Landsdorf</a> (Bianco Royal)
  **/
+
 /**
  * Modbus Server node.
  * @module NodeRedModbusServer
@@ -22,6 +23,7 @@ module.exports = function (RED) {
 
   function ModbusServer (config) {
     RED.nodes.createNode(this, config)
+
     const bufferFactor = 8
 
     this.name = config.name
@@ -30,7 +32,7 @@ module.exports = function (RED) {
     this.serverPort = parseInt(config.serverPort)
     this.responseDelay = parseInt(config.responseDelay) || 1
     this.delayUnit = config.delayUnit
-
+    this.showStatusActivities = config.showStatusActivities || false
     this.coilsBufferSize = parseInt(config.coilsBufferSize * bufferFactor)
     this.holdingBufferSize = parseInt(config.holdingBufferSize * bufferFactor)
     this.inputBufferSize = parseInt(config.inputBufferSize * bufferFactor)
@@ -49,6 +51,7 @@ module.exports = function (RED) {
 
     let modbusLogLevel = 'warn'
     if (RED.settings.verbose) {
+      /* istanbul ignore next */
       modbusLogLevel = 'debug'
     }
 
@@ -89,6 +92,14 @@ module.exports = function (RED) {
       mbBasics.setNodeStatusTo('error', node)
     }
 
+    node.netServer.on('error', function (err) {
+      internalDebugLog(err.message)
+      if (node.showErrors) {
+        node.error(err)
+      }
+      mbBasics.setNodeStatusTo('error', node)
+    })
+
     node.on('input', function (msg) {
       if (coreServer.isValidMemoryMessage(msg)) {
         coreServer.writeToServerMemory(node, msg)
@@ -99,7 +110,7 @@ module.exports = function (RED) {
         if (node.showErrors) {
           node.error('Is Not A Valid Memory Write Message To Server', msg)
         }
-        if (!msg.payload.disableMsgOutput) {
+        if (coreServer.isValidMessage(msg) && !msg.payload.disableMsgOutput) {
           node.send(buildMessage(msg))
         }
       }
@@ -117,12 +128,19 @@ module.exports = function (RED) {
 
     node.on('close', function (done) {
       mbBasics.setNodeStatusTo('closed', node)
+
       if (node.netServer) {
         node.netServer.close(() => {
           internalDebugLog('Modbus Server closed')
           done()
+          node.removeAllListeners()
+          node.netServer.removeAllListeners()
         })
+      } else {
+        done()
+        node.removeAllListeners()
       }
+
       node.modbusServer = null
     })
   }
@@ -130,6 +148,7 @@ module.exports = function (RED) {
   try {
     RED.nodes.registerType('modbus-server', ModbusServer)
   } catch (err) {
+    /* istanbul ignore next */
     internalDebugLog(err.message)
   }
 }

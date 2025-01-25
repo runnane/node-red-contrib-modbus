@@ -1,5 +1,5 @@
 /**
- Copyright (c) 2016,2017,2018,2019,2020,2021 Klaus Landsdorf (https://bianco-royal.space/)
+ Copyright (c) since the year 2016 Klaus Landsdorf (http://plus4nodered.com/)
  All rights reserved.
  node-red-contrib-modbus
  node-red-contrib-modbusio
@@ -144,21 +144,21 @@ de.biancoroyal.modbus.io.core.buildInputAddressMapping = function (registerName,
     return {
       register: registerName,
       name: mapping.name,
-      addressStart: addressStart,
-      addressOffset: addressOffset,
+      addressStart,
+      addressOffset,
       addressOffsetIO: Number(offset) || 0,
-      addressStartIO: addressStartIO,
+      addressStartIO,
       registerAddress: addressStartIO - Number(readingOffset),
-      coilStart: coilStart,
-      bitAddress: bitAddress,
+      coilStart,
+      bitAddress,
       Bit: (bitAddress) ? (Number(bitAddress[0]) * 8) + Number(bitAddress[1]) : 0,
-      bits: bits,
+      bits,
       dataType: ioCore.getDataTypeFromFirstCharType(type),
       type: 'input'
     }
   }
 
-  return { name: mapping.name, type: type, mapping: mapping, error: 'variable name does not match input mapping' }
+  return { name: mapping.name, type, mapping, error: 'variable name does not match input mapping' }
 }
 
 de.biancoroyal.modbus.io.core.buildOutputAddressMapping = function (registerName, mapping, offset, readingOffset, logging) {
@@ -229,21 +229,21 @@ de.biancoroyal.modbus.io.core.buildOutputAddressMapping = function (registerName
     return {
       register: registerName,
       name: mapping.name,
-      addressStart: addressStart,
-      addressOffset: addressOffset,
+      addressStart,
+      addressOffset,
       addressOffsetIO: Number(offset) || 0,
-      addressStartIO: addressStartIO,
+      addressStartIO,
       registerAddress: addressStartIO - Number(readingOffset),
-      coilStart: coilStart,
-      bitAddress: bitAddress,
+      coilStart,
+      bitAddress,
       Bit: (bitAddress) ? (Number(bitAddress[0]) * 8) + Number(bitAddress[1]) : 0,
-      bits: bits,
+      bits,
       dataType: ioCore.getDataTypeFromFirstCharType(type),
       type: 'output'
     }
   }
 
-  return { name: mapping.name, type: type, mapping: mapping, error: 'variable name does not match output mapping' }
+  return { name: mapping.name, type, mapping, error: 'variable name does not match output mapping' }
 }
 
 de.biancoroyal.modbus.io.core.insertValues = function (valueNames, register, logging) {
@@ -316,7 +316,8 @@ de.biancoroyal.modbus.io.core.getValueFromBufferByDataType = function (item, buf
   if (logging) {
     ioCore.internalDebug('Get Value From Buffer By Data Type:' + item.dataType + ' Register:' + item.registerAddress + ' Bits:' + Number(item.bits))
   }
-
+  let lowBits
+  let highBits
   switch (item.dataType) {
     case 'Boolean':
       item.value = !!(responseBuffer.readUInt16BE(bufferOffset) & Math.pow(item.bitAddress[1], 2))
@@ -340,7 +341,9 @@ de.biancoroyal.modbus.io.core.getValueFromBufferByDataType = function (item, buf
           item.value = responseBuffer.readInt32BE(bufferOffset)
           break
         case '64':
-          item.value = responseBuffer.readIntBE(bufferOffset, 8)
+          lowBits = responseBuffer.readUInt32BE(4)
+          highBits = responseBuffer.readUInt32BE(0)
+          item.value = highBits * 2 ** 32 + lowBits
           break
         default:
           item.value = responseBuffer.readInt16BE(bufferOffset)
@@ -405,6 +408,7 @@ de.biancoroyal.modbus.io.core.convertValuesByType = function (valueNames, regist
       try {
         item = ioCore.getValueFromBufferByDataType(item, bufferOffset, responseBuffer.buffer, logging)
       } catch (err) {
+        /* istanbul ignore next */
         ioCore.internalDebug(err.message)
       }
     } else {

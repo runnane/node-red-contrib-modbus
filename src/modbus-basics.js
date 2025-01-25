@@ -1,5 +1,5 @@
 /**
- Copyright (c) 2016,2017,2018,2019,2020,2021 Klaus Landsdorf (https://bianco-royal.space/)
+ Copyright (c) since the year 2016 Klaus Landsdorf (http://plus4nodered.com/)
  All rights reserved.
  node-red-contrib-modbus - The BSD 3-Clause License
 
