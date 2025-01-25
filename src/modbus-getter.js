@@ -1,10 +1,11 @@
 /**
- Copyright (c) 2016,2017,2018,2019,2020,2021 Klaus Landsdorf (https://bianco-royal.space/)
+ Copyright (c) since the year 2016 Klaus Landsdorf (http://plus4nodered.com/)
  All rights reserved.
  node-red-contrib-modbus - The BSD 3-Clause License
 
  @author <a href="mailto:klaus.landsdorf@bianco-royal.de">Klaus Landsdorf</a> (Bianco Royal)
  */
+
 /**
  * Modbus Getter node.
  * @module NodeRedModbusGetter
@@ -31,6 +32,7 @@ module.exports = function (RED) {
 
     this.showStatusActivities = config.showStatusActivities
     this.showErrors = config.showErrors
+    this.showWarnings = config.showWarnings
     this.msgThruput = config.msgThruput
     this.connection = null
 
@@ -44,8 +46,15 @@ module.exports = function (RED) {
     this.internalDebugLog = internalDebugLog
     this.verboseLogging = RED.settings.verbose
 
+    this.delayOnStart = config.delayOnStart
+    this.startDelayTime = parseInt(config.startDelayTime) || 10
+
     const node = this
     node.bufferMessageList = new Map()
+    node.INPUT_TIMEOUT_MILLISECONDS = 1000
+    node.delayOccured = false
+    node.inputDelayTimer = null
+
     mbBasics.setNodeStatusTo('waiting', node)
 
     const modbusClient = RED.nodes.getNode(config.server)
@@ -64,14 +73,16 @@ module.exports = function (RED) {
     }
 
     node.errorProtocolMsg = function (err, msg) {
-      mbBasics.logMsgError(node, err, msg)
-      mbBasics.sendEmptyMsgOnFail(node, err, msg)
+      if (node.showErrors) {
+        mbBasics.logMsgError(node, err, msg)
+      }
     }
 
     node.onModbusCommandError = function (err, msg) {
       node.internalDebugLog(err.message)
       const origMsg = mbCore.getOriginalMessage(node.bufferMessageList, msg)
       node.errorProtocolMsg(err, origMsg)
+      mbBasics.sendEmptyMsgOnFail(node, err, msg)
       mbBasics.setModbusError(node, modbusClient, err, origMsg)
       node.emit('modbusGetterNodeError')
     }
@@ -92,12 +103,60 @@ module.exports = function (RED) {
       }
     }
 
+    /* istanbul ignore next */
+    function verboseWarn (logMessage) {
+      if (RED.settings.verbose && node.showWarnings) {
+        node.warn('Getter -> ' + logMessage)
+      }
+    }
+
+    node.isReadyForInput = function () {
+      return (modbusClient.client && modbusClient.isActive() && node.delayOccured)
+    }
+
+    node.isNotReadyForInput = function () {
+      return !node.isReadyForInput()
+    }
+
+    node.resetInputDelayTimer = function () {
+      if (node.inputDelayTimer) {
+        /* istanbul ignore next */
+        verboseWarn('reset input delay timer node ' + node.id)
+        clearTimeout(node.inputDelayTimer)
+      }
+      node.inputDelayTimer = null
+      node.delayOccured = false
+    }
+
+    node.initializeInputDelayTimer = function () {
+      node.resetInputDelayTimer()
+      if (node.delayOnStart) {
+        /* istanbul ignore next */
+        verboseWarn('initialize input delay timer node ' + node.id)
+        node.inputDelayTimer = setTimeout(() => {
+          node.delayOccured = true
+        }, node.INPUT_TIMEOUT_MILLISECONDS * node.startDelayTime)
+      } else {
+        node.delayOccured = true
+      }
+    }
+
+    node.initializeInputDelayTimer()
+
     node.on('input', function (msg) {
+      /* istanbul ignore next */
       if (mbBasics.invalidPayloadIn(msg)) {
+        verboseWarn('Invalid message on input.')
         return
       }
-
-      if (!modbusClient.client) {
+      /* istanbul ignore next */
+      if (node.isNotReadyForInput()) {
+        verboseWarn('Inject while node is not ready for input.')
+        return
+      }
+      /* istanbul ignore next */
+      if (modbusClient.isInactive()) {
+        verboseWarn('You sent an input to inactive client. Please use initial delay on start or send data more slowly.')
         return
       }
 
@@ -111,12 +170,17 @@ module.exports = function (RED) {
           mbBasics.setNodeStatusTo(modbusClient.actualServiceState, node)
         }
       } catch (err) {
+        /* istanbul ignore next */
         node.errorProtocolMsg(err, origMsgInput)
+        /* istanbul ignore next */
+        mbBasics.sendEmptyMsgOnFail(node, err, origMsgInput)
       }
     })
 
     node.on('close', function (done) {
       mbBasics.setNodeStatusTo('closed', node)
+      node.resetInputDelayTimer()
+      node.removeAllListeners()
       node.bufferMessageList.clear()
       modbusClient.deregisterForModbus(node.id, done)
     })

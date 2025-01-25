@@ -1,5 +1,5 @@
 /**
- Copyright (c) 2016,2017,2018,2019,2020,2021 Klaus Landsdorf (https://bianco-royal.space/)
+ Copyright (c) since the year 2016 Klaus Landsdorf (http://plus4nodered.com/)
  Copyright 2016 - Jason D. Harper, Argonne National Laboratory
  Copyright 2015,2016 - Mika Karaila, Valmet Automation Inc.
  Copyright 2013, 2016 IBM Corp. (node-red)
@@ -8,6 +8,7 @@
 
  @author <a href="mailto:klaus.landsdorf@bianco-royal.de">Klaus Landsdorf</a> (Bianco Royal)
  **/
+
 /**
  * Modbus Read node.
  * @module NodeRedModbusRead
@@ -41,6 +42,7 @@ module.exports = function (RED) {
 
     this.showStatusActivities = config.showStatusActivities
     this.showErrors = config.showErrors
+    this.showWarnings = config.showWarnings
     this.connection = null
 
     this.useIOFile = config.useIOFile
@@ -59,13 +61,13 @@ module.exports = function (RED) {
     node.delayTimerReading = false
     node.intervalTimerIdReading = false
     setNodeStatusWithTimeTo(node.statusText)
-
+    /* istanbul ignore next */
     function verboseWarn (logMessage) {
-      if (RED.settings.verbose) {
-        node.warn('Client -> ' + logMessage + node.serverInfo)
+      if (node.verboseLogging && node.showWarnings) {
+        node.warn('Read -> ' + logMessage + ' address: ' + node.adr)
       }
     }
-
+    /* istanbul ignore next */
     verboseWarn('open node ' + node.id)
     const modbusClient = RED.nodes.getNode(config.server)
     if (!modbusClient) {
@@ -134,13 +136,15 @@ module.exports = function (RED) {
     }
 
     node.errorProtocolMsg = function (err, msg) {
-      mbBasics.logMsgError(node, err, msg)
-      mbBasics.sendEmptyMsgOnFail(node, err, msg)
+      if (node.showErrors) {
+        mbBasics.logMsgError(node, err, msg)
+      }
     }
 
     node.onModbusReadError = function (err, msg) {
       node.internalDebugLog(err.message)
       node.errorProtocolMsg(err, msg)
+      mbBasics.sendEmptyMsgOnFail(node, err, msg)
       mbBasics.setModbusError(node, modbusClient, err, msg)
     }
 
@@ -171,6 +175,7 @@ module.exports = function (RED) {
 
     node.resetDelayTimerToRead = function (node) {
       if (node.delayTimerReading) {
+        /* istanbul ignore next */
         verboseWarn('resetDelayTimerToRead node ' + node.id)
         clearTimeout(node.delayTimerReading)
       }
@@ -179,6 +184,7 @@ module.exports = function (RED) {
 
     node.resetIntervalToRead = function (node) {
       if (node.intervalTimerIdReading) {
+        /* istanbul ignore next */
         verboseWarn('resetIntervalToRead node ' + node.id)
         clearInterval(node.intervalTimerIdReading)
       }
@@ -194,6 +200,7 @@ module.exports = function (RED) {
 
     node.startIntervalReading = function () {
       if (!node.intervalTimerIdReading) {
+        /* istanbul ignore next */
         verboseWarn('startIntervalReading node ' + node.id)
         node.intervalTimerIdReading = setInterval(node.modbusPollingRead, mbBasics.calc_rateByUnit(node.rate, node.rateUnit))
       }
@@ -202,6 +209,7 @@ module.exports = function (RED) {
     node.initializeReadingTimer = function () {
       node.resetAllReadingTimer()
       if (node.delayOnStart) {
+        /* istanbul ignore next */
         verboseWarn('initializeReadingTimer delay timer node ' + node.id)
         node.delayTimerReading = setTimeout(node.startIntervalReading, node.INPUT_TIMEOUT_MILLISECONDS * node.startDelayTime)
       } else {
@@ -225,6 +233,7 @@ module.exports = function (RED) {
       node.resetAllReadingTimer()
       node.removeNodeListenerFromModbusClient()
       setNodeStatusWithTimeTo('closed')
+      /* istanbul ignore next */
       verboseWarn('close node ' + node.id)
       modbusClient.deregisterForModbus(node.id, done)
     })
@@ -259,9 +268,9 @@ module.exports = function (RED) {
           {
             topic,
             payload: response,
-            values: values,
+            values,
             input: msg,
-            valueNames: valueNames,
+            valueNames,
             sendingNodeId: node.id
           }])
       } else {
@@ -276,7 +285,7 @@ module.exports = function (RED) {
           {
             topic,
             payload: response,
-            values: values,
+            values,
             input: msg,
             sendingNodeId: node.id
           }

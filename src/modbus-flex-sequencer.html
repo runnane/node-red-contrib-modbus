@@ -1,5 +1,5 @@
 <!--
- Copyright (c) 2016,2017,2018,2019,2020,2021 Klaus Landsdorf (https://bianco-royal.space/)
+ Copyright (c) since the year 2016 Klaus Landsdorf (http://plus4nodered.com/)
  All rights reserved.
  node-red-contrib-modbus - The BSD 3-Clause License
 
@@ -68,6 +68,9 @@
       showErrors: {
         value: false
       },
+      showWarnings: {
+        value: true
+      },
       logIOActivities: {
         value: false
       },
@@ -87,7 +90,13 @@
       },
       keepMsgProperties: {
         value: false
-      }
+      },
+      delayOnStart: {
+        value: false
+      },
+      startDelayTime: {
+        value: ''
+      },
     },
     inputs: 1,
     outputs: 2,
@@ -121,6 +130,22 @@
       tabs.addTab({
         id: "modbus-options-tab",
         label: this._("modbus-contrib.tabs-label.options")
+      })
+
+      if (this.delayOnStart) {
+        $('#node-delay').show()
+      }
+      else {
+        $('#node-delay').hide()
+        $('#node-input-delayOnStart').prop('checked', false)
+      }
+
+      $('#node-input-delayOnStart').change(function () {
+        if ($(this).is(':checked')) {
+          $('#node-delay').show()
+        } else {
+          $('#node-delay').hide()
+        }
       })
 
       let useIOFileCheckbox = $('#node-input-useIOFile')
@@ -288,10 +313,10 @@
       });
     },
     oneditresize: function (size) {
-      
+
       var height = size.height;
       $('#node-input-sequences-container').css("height", (height - 145) + "px");
-      
+
     }
   })
 </script>
@@ -310,6 +335,15 @@
   <div id="node-input-tabs-content">
 
     <div id="modbus-settings-tab" style="display:none">
+      <div class="form-row" id="node-delayonstart">
+          <label for="node-input-delayOnStart" style="width:160px">
+          <i class="fa fa-power-off"></i> <span data-i18n="modbus-contrib.label.delayOnStart"></span></label>
+          <input type="checkbox" id="node-input-delayOnStart" style="width:40px">
+      </div>
+      <div class="form-row" id="node-delay">
+          <label for="node-input-startDelayTime"><i class="fa fa-clock-o"></i> <span data-i18n="modbus-contrib.label.startDelayTime"></span></label>
+          <input type="text" id="node-input-startDelayTime" placeholder="10" style="width:80px">
+      </div>
       <div class="form-row">
         <label for="node-input-server"><i class="icon-globe"></i> <span
             data-i18n="modbus-contrib.label.server"></span></label>
@@ -322,39 +356,44 @@
 
     <div id="modbus-options-tab" style="display:none">
       <div class="form-row">
-        <label style="min-width:160px" for="node-input-emptyMsgOnFail"><i class="fa fa-th"></i> <span
+        <label style="min-width:190px" for="node-input-emptyMsgOnFail"><i class="fa fa-th"></i> <span
             data-i18n="modbus-contrib.label.emptyMsgOnFail"></span></label>
         <input type="checkbox" id="node-input-emptyMsgOnFail" style="max-width:30px">
       </div>
       <div class="form-row">
-        <label style="min-width:160px" for="node-input-keepMsgProperties"><i class="fa fa-th"></i> <span
+        <label style="min-width:190px" for="node-input-keepMsgProperties"><i class="fa fa-th"></i> <span
             data-i18n="modbus-contrib.label.keepMsgProperties"></span></label>
         <input type="checkbox" id="node-input-keepMsgProperties" style="max-width:30px">
       </div>
       <div class="form-row">
-        <label style="min-width:160px" for="node-input-showStatusActivities"><i class="fa fa-th"></i> <span
+        <label style="min-width:190px" for="node-input-showStatusActivities"><i class="fa fa-th"></i> <span
             data-i18n="modbus-contrib.label.showActivities"></span></label>
         <input type="checkbox" id="node-input-showStatusActivities" style="max-width:30px">
       </div>
       <div class="form-row">
-        <label style="min-width:160px" for="node-input-showErrors"><i class="fa fa-th"></i> <span
+        <label style="min-width:190px" for="node-input-showErrors"><i class="fa fa-th"></i> <span
             data-i18n="modbus-contrib.label.showErrors"></span></label>
         <input type="checkbox" id="node-input-showErrors" style="max-width:30px">
       </div>
+      <div class="form-row">
+          <label style="min-width:190px" for="node-input-showWarnings"><i class="fa fa-th"></i> <span
+          data-i18n="modbus-contrib.label.showWarnings"></span></label>
+          <input type="checkbox" checked id="node-input-showWarnings" style="max-width:30px">
+      </div>
       <hr>
       <div class="form-row">
-        <label style="min-width:160px" for="node-input-useIOFile"><i class="fa fa-file-code-o"></i> <span
+        <label style="min-width:190px" for="node-input-useIOFile"><i class="fa fa-file-code-o"></i> <span
             data-i18n="modbus-contrib.label.useIOFile"></span></label>
         <input type="checkbox" id="node-input-useIOFile" style="max-width:30px">
       </div>
       <div id="modbusiofile-row">
         <div class="form-row">
-          <label style="min-width:160px" for="node-input-logIOActivities"><i class="fa fa-th"></i> <span
+          <label style="min-width:190px" for="node-input-logIOActivities"><i class="fa fa-th"></i> <span
               data-i18n="modbus-contrib.label.logIOActivities"></span></label>
           <input type="checkbox" id="node-input-logIOActivities" style="max-width:30px">
         </div>
         <div class="form-row">
-          <label style="min-width:160px" for="node-input-useIOForPayload"><i class="fa fa-comment-o"></i> <span
+          <label style="min-width:190px" for="node-input-useIOForPayload"><i class="fa fa-comment-o"></i> <span
               data-i18n="modbus-contrib.label.useIOForPayload"></span></label>
           <input type="checkbox" id="node-input-useIOForPayload" style="max-width:30px">
         </div>
@@ -396,7 +435,7 @@
      <strong>Input parameter for connecting Modbus</strong>
      <ul>
          <li>(mixed)  fc ('FC1', 'FC2', 'FC3', 'FC4' - Or - 1:4) - Function Code</li>
-         <li>(integer) unitid (0..255 tcp | 0..247 serial) - Unit-ID</li>        
+         <li>(integer) unitid (0..255 tcp | 0..247 serial) - Unit-ID</li>
          <li>(integer) address (0:65535) - The starting address</li>
          <li>(integer) quantity (1:65535) - The quantity of coils/inputs/registers to be read from the starting address</li>
      </ul>
@@ -413,7 +452,7 @@
       fc : 1,
       address : 1,
       unitid: 2,
-      quantity : 6,
+      quantity : 6
   }]
  return msg;
  </code>
@@ -426,7 +465,7 @@
       fc : 1,
       address : 1,
       unitid: 2,
-      quantity : 6,
+      quantity : 6
   },
   {
       name : "Bar",

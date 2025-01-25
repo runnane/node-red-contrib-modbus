@@ -1,5 +1,5 @@
 /**
- Copyright (c) 2016,2017,2018,2019,2020,2021 Klaus Landsdorf (https://bianco-royal.space/)
+ Copyright (c) since the year 2016 Klaus Landsdorf (http://plus4nodered.com/)
  All rights reserved.
  node-red-contrib-modbus - The BSD 3-Clause License
 
@@ -28,6 +28,7 @@ module.exports = function (RED) {
 
     this.showStatusActivities = config.showStatusActivities
     this.showErrors = config.showErrors
+    this.showWarnings = config.showWarnings
     this.connection = null
 
     this.useIOFile = config.useIOFile
@@ -40,14 +41,22 @@ module.exports = function (RED) {
     this.internalDebugLog = internalDebugLog
     this.verboseLogging = RED.settings.verbose
 
+    this.delayOnStart = config.delayOnStart
+    this.startDelayTime = Number(config.startDelayTime) || 10
+
     const node = this
     node.bufferMessageList = new Map()
+    node.INPUT_TIMEOUT_MILLISECONDS = 1000
+    node.delayOccured = false
+    node.inputDelayTimer = null
+
     mbBasics.setNodeStatusTo('waiting', node)
 
     const modbusClient = RED.nodes.getNode(config.server)
     if (!modbusClient) {
-      return
+      throw new Error('Modbus client not found')
     }
+
     modbusClient.registerForModbus(node)
     mbBasics.initModbusClientEvents(node, modbusClient)
 
@@ -61,20 +70,23 @@ module.exports = function (RED) {
     }
 
     node.errorProtocolMsg = function (err, msg) {
-      mbBasics.logMsgError(node, err, msg)
-      mbBasics.sendEmptyMsgOnFail(node, err, msg)
+      if (node.showErrors) {
+        mbBasics.logMsgError(node, err, msg)
+      }
     }
 
     node.onModbusReadError = function (err, msg) {
       node.internalDebugLog(err.message)
       const origMsg = mbCore.getOriginalMessage(node.bufferMessageList, msg)
       node.errorProtocolMsg(err, origMsg)
+      mbBasics.sendEmptyMsgOnFail(node, err, msg)
       mbBasics.setModbusError(node, modbusClient, err, origMsg)
       node.emit('modbusFlexSequencerNodeError')
     }
 
-    node.prepareMsg = function (msg) {
+    node.prepareMsg = (msg) => {
       if (typeof msg === 'string') {
+        // NOTE: The operation can fail!
         msg = JSON.parse(msg)
       }
 
@@ -101,32 +113,31 @@ module.exports = function (RED) {
     }
 
     node.isValidModbusMsg = function (msg) {
-      let isValid = true
-
+      // let isValid = true
+      // The original author did isValid &= false i replaced it with a simple early return if that breaks something
+      // we should change it back to the original value.
       if (!(Number.isInteger(msg.unitid) &&
           msg.unitid >= 0 &&
           msg.unitid <= 255)) {
         node.error('Unit ID Not Valid', msg)
-        isValid &= false
+        return false
       }
 
-      if (isValid &&
-        !(Number.isInteger(msg.address) &&
+      if (!(Number.isInteger(msg.address) &&
           msg.address >= 0 &&
           msg.address <= 65535)) {
         node.error('Address Not Valid', msg)
-        isValid &= false
+        return false
       }
 
-      if (isValid &&
-        !(Number.isInteger(msg.quantity) &&
+      if (!(Number.isInteger(msg.quantity) &&
           msg.quantity >= 1 &&
           msg.quantity <= 65535)) {
         node.error('Quantity Not Valid', msg)
-        isValid &= false
+        return false
       }
 
-      return isValid
+      return true
     }
 
     node.buildNewMessageObject = function (node, msg) {
@@ -146,9 +157,60 @@ module.exports = function (RED) {
         }
       }
     }
+    /* istanbul ignore next */
+    function verboseWarn (logMessage) {
+      if (RED.settings.verbose && node.showWarnings) {
+        node.warn('Flex-Sequencer -> ' + logMessage)
+      }
+    }
 
-    node.on('input', function (msg) {
-      if (!modbusClient.client) {
+    node.isReadyForInput = function () {
+      return (modbusClient.client && modbusClient.isActive() && node.delayOccured)
+    }
+
+    node.isNotReadyForInput = function () {
+      return !node.isReadyForInput()
+    }
+
+    node.resetInputDelayTimer = function () {
+      /* istanbul ignore next */
+      if (node.inputDelayTimer) {
+        verboseWarn('reset input delay timer node ' + node.id)
+        clearTimeout(node.inputDelayTimer)
+      }
+      node.inputDelayTimer = null
+      node.delayOccured = false
+    }
+
+    node.initializeInputDelayTimer = function () {
+      node.resetInputDelayTimer()
+      if (node.delayOnStart) {
+        /* istanbul ignore next */
+        verboseWarn('initialize input delay timer node ' + node.id)
+        node.inputDelayTimer = setTimeout(() => {
+          node.delayOccured = true
+        }, node.INPUT_TIMEOUT_MILLISECONDS * node.startDelayTime)
+      } else {
+        node.delayOccured = true
+      }
+    }
+
+    node.initializeInputDelayTimer()
+
+    node.on('input', (msg) => {
+      /* istanbul ignore next */
+      if (mbBasics.invalidPayloadIn(msg)) {
+        verboseWarn('Invalid message on input.')
+        return
+      }
+      /* istanbul ignore next */
+      if (node.isNotReadyForInput()) {
+        verboseWarn('Inject while node is not ready for input.')
+        return
+      }
+      /* istanbul ignore next */
+      if (modbusClient.isInactive()) {
+        verboseWarn('You sent an input to inactive client. Please use initial delay on start or send data more slowly.')
         return
       }
 
@@ -166,6 +228,7 @@ module.exports = function (RED) {
         })
       } catch (err) {
         node.errorProtocolMsg(err, origMsgInput)
+        mbBasics.sendEmptyMsgOnFail(node, err, origMsgInput)
       }
 
       if (node.showStatusActivities) {
@@ -173,7 +236,7 @@ module.exports = function (RED) {
       }
     })
 
-    node.on('close', function (done) {
+    node.on('close', (done) => {
       mbBasics.setNodeStatusTo('closed', node)
       node.bufferMessageList.clear()
       modbusClient.deregisterForModbus(node.id, done)
